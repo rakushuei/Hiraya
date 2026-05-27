@@ -1,0 +1,61 @@
+{
+  "fabrics": [
+    {
+      "id": "SKU-CAN-BLA-GLO",
+      "type": "Canvas",
+      "color": "Black",
+      "texture": "Glossy",
+      "quantity": 100,
+      "reserved": 4,
+      "status": "Available",
+      "updatedAt": "2026-05-15T13:49:52.000Z"
+    }
+  ],
+  "orders": [
+    {
+      "id": "SO-PO-665841",
+      "color": "Black",
+      "companyAddress": "Calamba, Laguna",
+      "companyCity": "4027, Philippines",
+      "customer": "NewForge",
+      "deliveryAddress": "Main Warehouse",
+      "deliveryCity": "4027, Philippines",
+      "deliveryName": "Regional DC Philippines",
+      "fabricType": "Canvas",
+      "items": [
+        {
+          "id": 396,
+          "color": "Black",
+          "fabricType": "Canvas",
+          "materialName": "Black Glossy Canvas",
+          "materialNo": "SKU-CAN-5732-BL",
+          "quantity": 1000,
+          "texture": "Glossy",
+          "unit": "Meters",
+          "unitPrice": 350
+        },
+        {
+          "id": 983,
+          "color": "White",
+          "fabricType": "Silk",
+          "materialName": "White Rough Silk",
+          "materialNo": "SKU-SIL-7078-WH",
+          "quantity": 200,
+          "texture": "Rough",
+          "unit": "Meters",
+          "unitPrice": 250
+        }
+      ],
+      "orderDate": "2026-05-15",
+      "poNumber": "PO-665841",
+      "quantity": 1200,
+      "requestedDate": "2026-05-15",
+      "source": "Manufacturer Portal",
+      "status": "Received",
+      "totalAmount": 400000,
+      "totalQuantity": 1200,
+      "updatedAt": "2026-05-15T09:03:47.007Z",
+      "workflowStep": 0
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "entities": {
+    "Fabric": {
+      "title": "Fabric",
+      "description": "Textile stock item tracked in rolls",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string" },
+        "color": { "type": "string" },
+        "texture": { "type": "string" },
+        "quantity": { "type": "number", "description": "Number of Rolls in stock" },
+        "reserved": { "type": "number", "description": "Number of Rolls reserved for orders" },
+        "status": { "type": "string", "enum": ["Available", "Low Stock", "Critical"] }
+      },
+      "required": ["id", "type", "color", "quantity", "status"]
+    },
+    "OrderItem": {
+      "title": "Order Item",
+      "description": "Specific line item within a Purchase Order",
+      "type": "object",
+      "properties": {
+        "id": { "type": "number" },
+        "materialName": { "type": "string" },
+        "materialNo": { "type": "string" },
+        "fabricType": { "type": "string" },
+        "color": { "type": "string" },
+        "texture": { "type": "string" },
+        "quantity": { "type": "number" },
+        "unit": { "type": "string" },
+        "unitPrice": { "type": "number" }
+      }
+    },
+    "PurchaseOrder": {
+      "title": "Purchase Order",
+      "description": "EDI/ERP Purchase Order from Manufacturer",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "poNumber": { "type": "string", "description": "e.g., PO-1234" },
+        "customer": { "type": "string" },
+        "fabricType": { "type": "string" },
+        "color": { "type": "string" },
+        "companyAddress": { "type": "string" },
+        "companyCity": { "type": "string" },
+        "deliveryAddress": { "type": "string" },
+        "deliveryCity": { "type": "string" },
+        "deliveryName": { "type": "string" },
+        "items": { 
+          "type": "array",
+          "items": { "$ref": "OrderItem" }
+        },
+        "quantity": { "type": "number" },
+        "totalQuantity": { "type": "number" },
+        "orderDate": { "type": "string" },
+        "requestedDate": { "type": "string" },
+        "source": { "type": "string" },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string" },
+        "workflowStep": { "type": "number" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "customer", "status"]
+    },
+    "Supplier": {
+      "title": "Supplier",
+      "description": "Material supplier",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "companyName": { "type": "string" },
+        "status": { "type": "string" }
+      }
+    },
+    "Shipment": {
+      "title": "Shipment",
+      "description": "Logistics tracking",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "status": { "type": "string" }
+      }
+    },
+    "Activity": {
+      "title": "Activity",
+      "description": "System log",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "action": { "type": "string" },
+        "date": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/fabrics": {
+      "schema": "Fabric",
+      "description": "Inventory of fabrics"
+    },
+    "/orders": {
+      "schema": "PurchaseOrder",
+      "description": "Purchase orders from manufacturers"
+    },
+    "/suppliers": {
+      "schema": "Supplier",
+      "description": "List of suppliers"
+    },
+    "/shipments": {
+      "schema": "Shipment",
+      "description": "Active logistics tracks"
+    },
+    "/activities": {
+      "schema": "Activity",
+      "description": "Recent system logs"
+    }
+  }
+}

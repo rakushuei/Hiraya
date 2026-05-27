@@ -1,0 +1,1112 @@
+{
+  "info": {
+    "name": "ThreadSync — Full API",
+    "_postman_id": "threadsync-api-v2",
+    "description": "All API endpoints for ThreadSync (Hiraya Supplier Portal).\n\nBase URL: {{baseUrl}}  →  http://localhost:3000\nOrder ID: {{orderId}}  →  PO-94827\nFabric ID: {{fabricId}} →  SKU-COT-WHI-SMO",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://wildcard-squeegee-plunder.ngrok-free.dev",
+      "type": "string"
+    },
+    {
+      "key": "orderId",
+      "value": "PO-94827",
+      "type": "string"
+    },
+    {
+      "key": "fabricId",
+      "value": "SKU-COT-WHI-SMO",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "🏥 Health",
+      "item": [
+        {
+          "name": "GET /api/health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ]
+            },
+            "description": "Verify the server is running."
+          }
+        }
+      ]
+    },
+    {
+      "name": "📋 Orders",
+      "item": [
+        {
+          "name": "GET All Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ]
+            },
+            "description": "List all purchase orders sorted newest first."
+          }
+        },
+        {
+          "name": "POST Create Order (EDI 850)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"PO-94827\",\n  \"poNumber\": \"PO-94827\",\n  \"customer\": \"Vogue Apparel Co.\",\n  \"customerId\": \"CUST-01\",\n  \"orderDate\": \"2026-05-20T00:00:00Z\",\n  \"requestedDate\": \"2026-06-05\",\n  \"deliveryName\": \"Cavite Warehouse Plant 3\",\n  \"deliveryAddress\": \"FCIE Compound, Governors Drive\",\n  \"deliveryCity\": \"Dasmarinas, Cavite\",\n  \"fabricType\": \"Denim\",\n  \"color\": \"Blue\",\n  \"texture\": \"Heavyweight\",\n  \"quantity\": 150,\n  \"unit\": \"Yards\",\n  \"items\": [\n    {\n      \"materialNo\": \"FAB-CO-TW-4820\",\n      \"materialName\": \"100% Organic Cotton Twill (Olive)\",\n      \"fabricType\": \"Cotton\",\n      \"color\": \"Olive\",\n      \"texture\": \"Medium\",\n      \"quantity\": 120,\n      \"unit\": \"Yards\",\n      \"unitPrice\": 4.50\n    }\n  ],\n  \"status\": \"Supplier Confirmation (855)\",\n  \"workflowStep\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ]
+            },
+            "description": "Create a new purchase order. Returns 201 Created."
+          }
+        },
+        {
+          "name": "GET Single Order",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{orderId}}"
+              ]
+            },
+            "description": "Fetch one order by ID."
+          }
+        },
+        {
+          "name": "PUT Advance Workflow Step",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Load Tender (204)\",\n  \"workflowStep\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{orderId}}",
+                "status"
+              ]
+            },
+            "description": "Advance or update the workflow step and status."
+          }
+        },
+        {
+          "name": "PUT Update Transit Status (EDI 214)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transitStatus\": \"In Transit\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}/transit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{orderId}}",
+                "transit"
+              ]
+            },
+            "description": "Set the EDI-214 transit sub-status. Values: Pending, Pickup, In Transit, Delivered."
+          }
+        },
+        {
+          "name": "PUT Decline Order",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"declineReason\": \"Fabric currently out of stock for requested color.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}/decline",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{orderId}}",
+                "decline"
+              ]
+            },
+            "description": "Decline an order with a mandatory reason."
+          }
+        },
+        {
+          "name": "PUT Add Supplier Note",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"supplierNote\": \"Only 80 rolls available this week. Will ship remainder next Monday.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}/note",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{orderId}}",
+                "note"
+              ]
+            },
+            "description": "Attach a supplier availability note to an order."
+          }
+        },
+        {
+          "name": "DELETE Order",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{orderId}}"
+              ]
+            },
+            "description": "Permanently delete an order."
+          }
+        }
+      ]
+    },
+    {
+      "name": "🧵 Fabrics (Inventory)",
+      "item": [
+        {
+          "name": "GET All Fabrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/fabrics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fabrics"
+              ]
+            },
+            "description": "List all fabric SKUs from the warehouse."
+          }
+        },
+        {
+          "name": "POST Create Fabric SKU",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"SKU-COT-WHI-SMO\",\n  \"type\": \"Cotton\",\n  \"color\": \"White\",\n  \"texture\": \"Smooth\",\n  \"gsm\": 180,\n  \"width\": 150,\n  \"rollLength\": 100,\n  \"quantity\": 50,\n  \"unitPrice\": 350,\n  \"reorderLevel\": 10,\n  \"supplierOrigin\": \"Philippines\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/fabrics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fabrics"
+              ]
+            },
+            "description": "Add a new fabric SKU to inventory. Returns 201 Created."
+          }
+        },
+        {
+          "name": "GET Single Fabric SKU",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/fabrics/{{fabricId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fabrics",
+                "{{fabricId}}"
+              ]
+            },
+            "description": "Fetch one fabric SKU by its ID."
+          }
+        },
+        {
+          "name": "PUT Update Fabric SKU",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"Cotton\",\n  \"color\": \"White\",\n  \"texture\": \"Smooth\",\n  \"gsm\": 200,\n  \"width\": 150,\n  \"rollLength\": 100,\n  \"quantity\": 75,\n  \"unitPrice\": 380,\n  \"reorderLevel\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/fabrics/{{fabricId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fabrics",
+                "{{fabricId}}"
+              ]
+            },
+            "description": "Full update of a fabric SKU."
+          }
+        },
+        {
+          "name": "PATCH Reserve Stock",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"reserve\",\n  \"rolls\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/fabrics/{{fabricId}}/stock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fabrics",
+                "{{fabricId}}",
+                "stock"
+              ]
+            },
+            "description": "Reserve rolls when an order is confirmed (EDI 855 step)."
+          }
+        },
+        {
+          "name": "PATCH Deduct Stock",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"deduct\",\n  \"rolls\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/fabrics/{{fabricId}}/stock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fabrics",
+                "{{fabricId}}",
+                "stock"
+              ]
+            },
+            "description": "Deduct rolls when shipment is dispatched (EDI 856 step)."
+          }
+        },
+        {
+          "name": "PATCH Release Reserved Stock",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"release\",\n  \"rolls\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/fabrics/{{fabricId}}/stock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fabrics",
+                "{{fabricId}}",
+                "stock"
+              ]
+            },
+            "description": "Release reserved rolls when an order is declined."
+          }
+        },
+        {
+          "name": "PATCH Set Stock (Manual Correction)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"set\",\n  \"quantity\": 100,\n  \"reserved\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/fabrics/{{fabricId}}/stock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fabrics",
+                "{{fabricId}}",
+                "stock"
+              ]
+            },
+            "description": "Manually set quantity and reserved to exact values."
+          }
+        },
+        {
+          "name": "DELETE Fabric SKU",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/fabrics/{{fabricId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fabrics",
+                "{{fabricId}}"
+              ]
+            },
+            "description": "Permanently delete a fabric SKU."
+          }
+        }
+      ]
+    },
+    {
+      "name": "📡 EDI Pipeline",
+      "item": [
+        {
+          "name": "POST Receive Purchase Order — EDI 850",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"PO-94827\",\n  \"poNumber\": \"PO-94827\",\n  \"customer\": \"Vogue Apparel Co.\",\n  \"customerId\": \"CUST-01\",\n  \"orderDate\": \"2026-05-20T00:00:00Z\",\n  \"requestedDate\": \"2026-06-05\",\n  \"deliveryName\": \"Cavite Warehouse Plant 3\",\n  \"deliveryAddress\": \"FCIE Compound, Governors Drive\",\n  \"deliveryCity\": \"Dasmarinas, Cavite\",\n  \"items\": [\n    {\n      \"materialNo\": \"FAB-CO-TW-4820\",\n      \"materialName\": \"100% Organic Cotton Twill (Olive)\",\n      \"fabricType\": \"Cotton\",\n      \"color\": \"Olive\",\n      \"texture\": \"Medium\",\n      \"quantity\": 120,\n      \"unit\": \"Yards\",\n      \"unitPrice\": 4.50\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/edi/receive/850",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "edi",
+                "receive",
+                "850"
+              ]
+            },
+            "description": "Retailer → Bulldog. Receive an EDI 850 Purchase Order. Returns 201 Created."
+          }
+        },
+        {
+          "name": "POST Receive Receiving Advice — EDI 861",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"PO-94827\",\n  \"receivedAt\": \"2026-05-25T10:00:00Z\",\n  \"notes\": \"All items received in good condition.\",\n  \"receivedItems\": [\n    {\n      \"materialNo\": \"FAB-CO-TW-4820\",\n      \"quantityOrdered\": 120,\n      \"quantityReceived\": 120,\n      \"unit\": \"Yards\",\n      \"condition\": \"Good\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/edi/receive/861",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "edi",
+                "receive",
+                "861"
+              ]
+            },
+            "description": "Retailer → Bulldog. Confirm goods were received."
+          }
+        },
+        {
+          "name": "POST Import — EDI 855 (PO Acknowledgement)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ediType\": \"855\",\n  \"orderId\": \"PO-94827\",\n  \"acknowledgedBy\": \"Hiraya Supplier Portal\",\n  \"acknowledgedAt\": \"2026-05-20T02:00:00Z\",\n  \"notes\": \"Order acknowledged and accepted.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/edi/import",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "edi",
+                "import"
+              ]
+            },
+            "description": "Retailer → Bulldog. Unified intake — set ediType to 855."
+          }
+        },
+        {
+          "name": "POST Import — EDI 856 (Advance Ship Notice)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ediType\": \"856\",\n  \"orderId\": \"PO-94827\",\n  \"shipmentId\": \"SHP-94827\",\n  \"shipDate\": \"2026-05-21T06:00:00Z\",\n  \"estimatedDeliveryDate\": \"2026-05-23T12:00:00Z\",\n  \"carrier\": \"CarGo\",\n  \"trackingNumber\": \"TRK-20260521-001\",\n  \"packages\": [{ \"packageId\": \"PKG-001\", \"weight\": \"1.5T\" }],\n  \"items\": [{ \"materialNo\": \"FAB-CO-TW-4820\", \"quantity\": 120, \"unit\": \"Yards\" }]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/edi/import",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "edi",
+                "import"
+              ]
+            },
+            "description": "Retailer → Bulldog. Unified intake — set ediType to 856."
+          }
+        },
+        {
+          "name": "POST Import — EDI 214 (Pick Up)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ediType\": \"214\",\n  \"orderId\": \"PO-94827\",\n  \"statusCode\": \"PU\",\n  \"statusDescription\": \"Shipment picked up from origin warehouse.\",\n  \"location\": \"Manila, NCR\",\n  \"timestamp\": \"2026-05-21T08:00:00Z\",\n  \"carrierScac\": \"CRGO\",\n  \"trackingNumber\": \"TRK-20260521-001\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/edi/import",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "edi",
+                "import"
+              ]
+            },
+            "description": "Retailer → Bulldog. statusCode PU = Pick Up."
+          }
+        },
+        {
+          "name": "POST Import — EDI 214 (In Transit)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ediType\": \"214\",\n  \"orderId\": \"PO-94827\",\n  \"statusCode\": \"IT\",\n  \"statusDescription\": \"Shipment is in transit.\",\n  \"location\": \"SLEX, Laguna\",\n  \"timestamp\": \"2026-05-21T14:30:00Z\",\n  \"carrierScac\": \"CRGO\",\n  \"trackingNumber\": \"TRK-20260521-001\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/edi/import",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "edi",
+                "import"
+              ]
+            },
+            "description": "Retailer → Bulldog. statusCode IT = In Transit."
+          }
+        },
+        {
+          "name": "POST Import — EDI 214 (Delivered)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ediType\": \"214\",\n  \"orderId\": \"PO-94827\",\n  \"statusCode\": \"D\",\n  \"statusDescription\": \"Shipment delivered to destination.\",\n  \"location\": \"Dasmarinas, Cavite\",\n  \"timestamp\": \"2026-05-23T11:00:00Z\",\n  \"carrierScac\": \"CRGO\",\n  \"trackingNumber\": \"TRK-20260521-001\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/edi/import",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "edi",
+                "import"
+              ]
+            },
+            "description": "Retailer → Bulldog. statusCode D = Delivered."
+          }
+        },
+        {
+          "name": "POST Import — EDI 810 (Invoice)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ediType\": \"810\",\n  \"orderId\": \"PO-94827\",\n  \"invoiceNumber\": \"INV-94827\",\n  \"invoiceDate\": \"2026-05-23T12:00:00Z\",\n  \"totalAmount\": 540.00,\n  \"notes\": \"Final invoice for PO-94827.\",\n  \"lineItems\": [\n    {\n      \"materialNo\": \"FAB-CO-TW-4820\",\n      \"description\": \"100% Organic Cotton Twill (Olive)\",\n      \"quantity\": 120,\n      \"unit\": \"Yards\",\n      \"unitPrice\": 4.50,\n      \"totalPrice\": 540.00\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/edi/import",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "edi",
+                "import"
+              ]
+            },
+            "description": "Retailer → Bulldog. Unified intake — set ediType to 810."
+          }
+        },
+        {
+          "name": "POST Dispatch Load Tender — EDI 204",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order\": {\n    \"id\": \"PO-94827\",\n    \"poNumber\": \"PO-94827\",\n    \"customer\": \"Vogue Apparel Co.\",\n    \"customerName\": \"Vogue Apparel Co.\",\n    \"deliveryName\": \"Cavite Warehouse Plant 3\",\n    \"deliveryAddress\": \"FCIE Compound, Governors Drive\",\n    \"deliveryCity\": \"Dasmarinas, Cavite\",\n    \"totalWeightKg\": 1500,\n    \"items\": [\n      {\n        \"materialName\": \"100% Organic Cotton Twill (Olive)\",\n        \"quantity\": 120,\n        \"unit\": \"Yards\",\n        \"color\": \"Olive\",\n        \"texture\": \"Medium\"\n      }\n    ]\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/edi/send-204",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "edi",
+                "send-204"
+              ]
+            },
+            "description": "Bulldog → CarGo. Dispatch EDI 204 Load Tender to the logistics carrier."
+          }
+        },
+        {
+          "name": "POST CarGo Webhook — Accepted (EDI 990)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"PO-94827\",\n  \"status\": \"accepted\",\n  \"assignedVehicle\": \"Isuzu Elf 4-Wheeler\",\n  \"plateNumber\": \"ABC-1234\",\n  \"event\": \"load_tender_accepted\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/edi/cargo/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "edi",
+                "cargo",
+                "webhook"
+              ]
+            },
+            "description": "CarGo → Bulldog. Carrier accepted the load tender (EDI 990)."
+          }
+        },
+        {
+          "name": "POST CarGo Webhook — Rejected (EDI 990)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"PO-94827\",\n  \"status\": \"rejected\",\n  \"reason\": \"No available vehicles for the requested route.\",\n  \"event\": \"load_tender_rejected\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/edi/cargo/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "edi",
+                "cargo",
+                "webhook"
+              ]
+            },
+            "description": "CarGo → Bulldog. Carrier rejected the load tender."
+          }
+        },
+        {
+          "name": "POST CarGo Webhook — In Transit (EDI 214)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"PO-94827\",\n  \"status\": \"in_transit\",\n  \"location\": \"SLEX, Laguna\",\n  \"event\": \"shipment_in_transit\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/edi/cargo/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "edi",
+                "cargo",
+                "webhook"
+              ]
+            },
+            "description": "CarGo → Bulldog. Shipment in transit status update."
+          }
+        },
+        {
+          "name": "POST CarGo Webhook — Delivered (EDI 214)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "ngrok-skip-browser-warning",
+                "value": "true"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"PO-94827\",\n  \"status\": \"delivered\",\n  \"location\": \"Dasmarinas, Cavite\",\n  \"event\": \"shipment_delivered\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/edi/cargo/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "edi",
+                "cargo",
+                "webhook"
+              ]
+            },
+            "description": "CarGo → Bulldog. Shipment delivered — triggers Fulfillment Complete."
+          }
+        }
+      ]
+    }
+  ]
+}
