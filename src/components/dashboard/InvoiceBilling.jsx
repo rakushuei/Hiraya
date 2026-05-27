@@ -23,10 +23,16 @@ function paymentIcon(status) {
 }
 
 function calcTotal(order) {
-  if (order.totalAmount) return Number(order.totalAmount);
-  const items = order.items || [];
-  if (items.length > 0) return items.reduce((s, i) => s + (i.quantity || 0) * (i.unitPrice || 750), 0);
-  return (order.quantity || 0) * 750;
+  const materialsTotal = order.invoicedTotalAmount
+    ? Number(order.invoicedTotalAmount)
+    : order.totalAmount
+    ? Number(order.totalAmount)
+    : (() => {
+        const items = order.items || [];
+        if (items.length > 0) return items.reduce((s, i) => s + (i.quantity || 0) * (i.unitPrice || 750), 0);
+        return (order.quantity || 0) * 750;
+      })();
+  return materialsTotal;
 }
 
 function PaymentModal({ order, onClose, onSave }) {

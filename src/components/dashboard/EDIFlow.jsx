@@ -43,99 +43,175 @@ const STEP_COLORS = {
 
 // ── Per-EDI payload definitions ───────────────────────────────────────────────
 function getEdiPayload(step, order) {
-  const shipId = order.carrierShipmentId || order.shipmentId || "SHP-XXXX";
-  const items  = order.items?.length > 0 ? order.items : [{
+  const shipId   = order.carrierShipmentId || order.shipmentId || "SHP-XXXX";
+  const vehicle  = typeof order.assignedVehicle === "object"
+    ? order.assignedVehicle
+    : { name: order.assignedVehicle || "—" };
+  const items    = order.items?.length > 0 ? order.items : [{
     fabricType: order.fabricType || "Canvas", color: order.color || "Black",
     texture: order.texture || "Breathable Mesh", quantity: order.quantity || 0,
     unit: order.unit || "Meters", unitPrice: order.unitPrice || 750,
   }];
+  const invoiceNo = `INV-${(order.poNumber || order.id || "").replace(/[^0-9]/g, "")}`;
+  const totalAmt  = order.totalAmount || items.reduce((s, i) => s + (Number(i.quantity)||0)*(Number(i.unitPrice)||750), 0);
 
   const payloads = {
-    "850": { // 850 — received from manufacturer (the original PO)
+    // ── 850 — received from manufacturer ──────────────────────────────────────
+    "850": {
       label: "Received from Manufacturer",
       json: {
         orderId:      order.id,
         poNumber:     order.poNumber || order.id,
         customer:     order.customer || order.customerName || "Vogue Manufacturing",
-        fabricType:   items[0]?.fabricType,
-        color:        items[0]?.color,
-        texture:      items[0]?.texture,
-        quantity:     items[0]?.quantity,
-        unit:         items[0]?.unit,
-        totalAmount:  order.totalAmount,
+        customerName: order.customerName || order.customer,
         orderDate:    order.orderDate || order.createdAt,
+        deliveryName: order.deliveryName,
+        deliveryAddress: order.deliveryAddress,
+        deliveryCity: order.deliveryCity,
+        contactPerson: order.contactPerson,
+        contactPhone:  order.contactPhone,
+        totalAmount:  totalAmt,
         items,
       },
       x12: () => segmentsToX12String(getX12POSegments(order)),
     },
-    0: { // 855 — sent to manufacturer
+
+    // ── 855 — sent to manufacturer ─────────────────────────────────────────────
+    0: {
       label: "Sent to Manufacturer",
-      json: { orderId: order.id, poNumber: order.poNumber, customer: order.customer,
-        status: "Acknowledged", acknowledgedAt: order.updatedAt, items },
+      json: {
+        orderId:        order.id,
+        poNumber:       order.poNumber || order.id,
+        customer:       order.customer || order.customerName,
+        status:         order.partialAck ? "PartialAcknowledged" : "Acknowledged",
+        acknowledgedAt: order.updatedAt || new Date().toISOString(),
+        items: order.partialAckItems || items,
+      },
       x12: () => getX12_855(order),
     },
-    1: { // 204 — sent to CarGo
+
+    // ── 204 — sent to CarGo ────────────────────────────────────────────────────
+    1: {
       label: "Sent to CarGo",
-      json: { orderId: order.id, poNumber: order.poNumber, carrier: "CarGo", serviceType: "LTL",
-        shipmentId: shipId, items },
+      json: {
+        orderId:               order.id,
+        poNumber:              order.poNumber || order.id,
+        carrier:               "CarGo",
+        serviceType:           "LTL",
+        shipmentId:            shipId,
+        weight:                `${order.totalWeightKg || 0}kg`,
+        palletCount:           order.palletCount || 1,
+        totalVolumeCbm:        order.totalVolumeCbm || 0,
+        estimatedFreightCost:  2500,
+        items,
+      },
       x12: () => getX12_204(order),
     },
-    2: { // 990 — received from CarGo
+
+    // ── 990 — received from CarGo ──────────────────────────────────────────────
+    2: {
       label: "Received from CarGo",
-      json: { orderId: order.id, status: "ACCEPTED",
-        assignedVehicle: typeof order.assignedVehicle === "object"
-          ? order.assignedVehicle
-          : { name: order.assignedVehicle || "—" },
-        shipmentId: shipId },
+      json: {
+        orderId:               order.id,
+        shipmentId:            shipId,
+        status:                "ACCEPTED",
+        estimatedDeliveryDate: order.carrierEstimatedDelivery || "—",
+        totalAmount:           order.freightTotalAmount || "—",
+        assignedVehicle:       vehicle,
+      },
       x12: () => getX12_990(order),
     },
-    3: { // 856 — sent to manufacturer
+
+    // ── 856 — sent to manufacturer ─────────────────────────────────────────────
+    3: {
       label: "Sent to Manufacturer",
       json: {
         orderId:               order.id,
         poNumber:              order.poNumber || order.id,
         shipmentId:            shipId,
-        shipDate:              order.updatedAt || new Date().toISOString(),
-        estimatedDeliveryDate: new Date(Date.now() + 3 * 86400000).toISOString(),
+        shipDate:              order.carrierAcceptedAt || order.updatedAt || new Date().toISOString(),
+        estimatedDeliveryDate: order.carrierEstimatedDelivery || new Date(Date.now() + 3*86400000).toISOString(),
         carrier:               "CarGo",
         serviceType:           "LTL",
         items,
       },
       x12: () => getX12_204(order),
     },
-    4: { // 214 — received from CarGo (sub-steps)
+
+    // ── 214 — received from CarGo (sub-steps) ─────────────────────────────────
+    4: {
       label: "Received from CarGo",
-      json: null,
+      json: null, // shown as sub-steps
       x12: () => getX12_214(order),
     },
-    5: { // 861 — received from manufacturer
+
+    // ── 861 — received from manufacturer ──────────────────────────────────────
+    5: {
       label: "Received from Manufacturer",
-      json: { orderId: order.id, receivedAt: order.receivingAdvice?.receivedAt,
-        notes: order.receivingAdvice?.notes, receivedItems: order.receivingAdvice?.receivedItems || [] },
+      json: order.receivingAdvice ? {
+        orderId:       order.id,
+        receivedAt:    order.receivingAdvice.receivedAt,
+        notes:         order.receivingAdvice.notes,
+        receivedItems: order.receivingAdvice.receivedItems || [],
+      } : { orderId: order.id, receivedAt: "—", notes: "—", receivedItems: [] },
       x12: () => getX12_861(order),
     },
-    6: { // 810 — sent to manufacturer
-      label: "Sent to Manufacturer",
-      json: { orderId: order.id, poNumber: order.poNumber,
-        invoiceNumber: `INV-${(order.poNumber || order.id || "").replace(/[^0-9]/g, "")}`,
-        totalAmount: order.totalAmount, items },
-      x12: () => segmentsToX12String(getX12InvoiceSegments(order)),
-    },
-    7: { // 820 — received from manufacturer (Fulfillment Complete)
-      label: "Received from Manufacturer",
-      json: order.edi820 ? { orderId: order.id, poNumber: order.poNumber,
-        invoiceNumber: order.edi820.invoiceNumber, paymentAmount: order.edi820.paymentAmount,
-        paymentMethod: order.edi820.paymentMethod, referenceNumber: order.edi820.referenceNumber,
-        paymentDate: order.edi820.paymentDate } : { orderId: order.id, paymentAmount: order.totalAmount, paymentStatus: "Paid" },
-      x12: () => getX12_820(order),
-    },
-    8: { // 997 — sent to manufacturer (Functional Acknowledgement)
+
+    // ── 810 — sent to manufacturer ─────────────────────────────────────────────
+    6: {
       label: "Sent to Manufacturer",
       json: {
         orderId:        order.id,
         poNumber:       order.poNumber || order.id,
-        invoiceNumber:  `INV-${(order.poNumber || order.id || "").replace(/[^0-9]/g, "")}`,
-        totalAmount:    order.totalAmount,
+        invoiceNumber:  invoiceNo,
+        invoiceDate:    order.updatedAt || new Date().toISOString(),
+        materialsTotal: totalAmt,
+        freightCost:    order.invoiceFreightCost || order.freightTotalAmount || 0,
+        totalAmount:    order.invoicedTotalAmount || (totalAmt + Number(order.freightTotalAmount || 0)),
+        items: [
+          ...items.map(i => ({
+            description: i.fabricType || i.productName || "Fabric",
+            quantity:    i.quantity,
+            unit:        i.unit || "Meters",
+            unitPrice:   i.unitPrice || 750,
+            lineTotal:   (Number(i.quantity)||0) * (Number(i.unitPrice)||750),
+          })),
+          ...(order.freightTotalAmount ? [{
+            description: "Freight / Shipping (CarGo LTL)",
+            quantity:    1,
+            unit:        "Service",
+            unitPrice:   Number(order.freightTotalAmount),
+            lineTotal:   Number(order.freightTotalAmount),
+          }] : []),
+        ],
+      },
+      x12: () => segmentsToX12String(getX12InvoiceSegments(order)),
+    },
+
+    // ── 820 — received from manufacturer ──────────────────────────────────────
+    7: {
+      label: "Received from Manufacturer",
+      json: order.edi820 ? {
+        orderId:         order.id,
+        poNumber:        order.poNumber || order.id,
+        invoiceNumber:   order.edi820.invoiceNumber,
+        paymentAmount:   order.edi820.paymentAmount,
+        paymentMethod:   order.edi820.paymentMethod,
+        referenceNumber: order.edi820.referenceNumber,
+        paymentDate:     order.edi820.paymentDate,
+        paymentStatus:   "Paid",
+      } : { orderId: order.id, paymentAmount: totalAmt, paymentStatus: "Paid" },
+      x12: () => getX12_820(order),
+    },
+
+    // ── 997 — sent to manufacturer ─────────────────────────────────────────────
+    8: {
+      label: "Sent to Manufacturer",
+      json: order.edi997Payload || {
+        orderId:        order.id,
+        poNumber:       order.poNumber || order.id,
+        invoiceNumber:  invoiceNo,
+        totalAmount:    totalAmt,
         paymentStatus:  "Paid",
         acknowledgedAt: order.edi997SentAt || new Date().toISOString(),
       },

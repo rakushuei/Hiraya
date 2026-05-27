@@ -215,7 +215,9 @@ function DetailModal({ order, onClose }) {
               { label: "Vehicle",         value: typeof order.assignedVehicle === "object"
                   ? `${order.assignedVehicle?.name || "—"}${order.assignedVehicle?.plate ? ` · ${order.assignedVehicle.plate}` : ""}`
                   : order.assignedVehicle || "—" },
-              { label: "Shipment ID",          value: order.carrierShipmentId || order.shipmentId || "—" },
+              { label: "Shipment ID",           value: order.carrierShipmentId || order.shipmentId || "—" },
+              { label: "Freight Amount",        value: order.freightTotalAmount != null ? `₱${Number(order.freightTotalAmount).toLocaleString()}` : "—" },
+              { label: "Est. Delivery",         value: order.carrierEstimatedDelivery ? new Date(order.carrierEstimatedDelivery).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "—" },
               { label: "Accepted At",           value: order.carrierAcceptedAt ? new Date(order.carrierAcceptedAt).toLocaleString() : "—" },
               { label: "Arrived At Destination", value: order.carrierDeliveredAt ? new Date(order.carrierDeliveredAt).toLocaleString() : "—" },
               { label: "Delivery Location",     value: order.currentLocation || "—" },

@@ -13,7 +13,7 @@ const WORKFLOW_STEPS = [
   { name: "Supplier Confirmation (855)", icon: CheckCircle2 },
   { name: "Load Tender (204)",           icon: FileText },
   { name: "Logistics Tender Accepted (990)", icon: Check },
-  { name: "Shipment Dispatched (856)",   icon: Truck },
+  { name: "Shipment Staged (856 Prep)",      icon: Truck },
   { name: "Transit Status Updates (214)", icon: Zap },
   { name: "Receiving Advice (861)",      icon: Package },
   { name: "Invoice (810)",               icon: CreditCard },
@@ -391,10 +391,11 @@ export const Orders = ({ orders, fabrics }) => {
             orderId:               order.id,
             poNumber:              order.poNumber || order.id,
             shipmentId:            order.carrierShipmentId || order.shipmentId || `SHP-${Date.now()}`,
-            shipDate:              new Date().toISOString(),
-            estimatedDeliveryDate: new Date(Date.now() + 3 * 86400000).toISOString(),
+            shipDate:              order.carrierAcceptedAt || new Date().toISOString(),
+            estimatedDeliveryDate: order.carrierEstimatedDelivery || new Date(Date.now() + 3 * 86400000).toISOString(),
             carrier:               "CarGo",
             serviceType:           "LTL",
+            assignedVehicle:       order.assignedVehicle || null,
             items: (order.items || [{
               fabricType: order.fabricType,
               color:      order.color,
@@ -426,10 +427,35 @@ export const Orders = ({ orders, fabrics }) => {
         } else if (nextStep === 6) {
           // Step 5→6: Invoice (810) — generate invoice segments, then notify manufacturer
           x12Updates = { "EDI Transaction": getX12InvoiceSegments(order) };
-          const invoiceNumber = `INV-${(order.poNumber || order.id).replace(/[^0-9]/g, "")}`;
-          const totalAmount   = order.totalAmount ||
+          const invoiceNumber  = `INV-${(order.poNumber || order.id).replace(/[^0-9]/g, "")}`;
+          const materialsTotal = order.totalAmount ||
             (order.items || []).reduce((s, i) => s + (i.quantity || 0) * (i.unitPrice || 750), 0) ||
             (order.quantity || 0) * 750;
+          // Add freight cost from 990 so manufacturer covers shipping
+          const freightCost    = Number(order.freightTotalAmount || 0);
+          const grandTotal     = materialsTotal + freightCost;
+
+          const lineItems = (order.items || [{
+            fabricType: order.fabricType, color: order.color, texture: order.texture,
+            quantity: order.quantity, unit: order.unit || "Meters", unitPrice: order.unitPrice || 750,
+          }]).map(i => ({
+            description: i.fabricType || i.productName || "Fabric",
+            quantity:    i.quantity,
+            unit:        i.unit || "Meters",
+            unitPrice:   i.unitPrice || 750,
+            lineTotal:   (i.quantity || 0) * (i.unitPrice || 750),
+          }));
+
+          // Add freight as a separate line item if present
+          if (freightCost > 0) {
+            lineItems.push({
+              description: "Freight / Shipping (CarGo LTL)",
+              quantity:    1,
+              unit:        "Service",
+              unitPrice:   freightCost,
+              lineTotal:   freightCost,
+            });
+          }
 
           try {
             const res810 = await fetch("/api/edi/proxy-manufacturer", {
@@ -438,22 +464,26 @@ export const Orders = ({ orders, fabrics }) => {
               body: JSON.stringify({
                 endpoint: "receive-810",
                 body: {
-                  orderId: order.id, poNumber: order.poNumber || order.id,
-                  invoiceNumber, invoiceDate: new Date().toISOString(), totalAmount,
-                  items: (order.items || [{
-                    fabricType: order.fabricType, color: order.color, texture: order.texture,
-                    quantity: order.quantity, unit: order.unit || "Meters", unitPrice: order.unitPrice || 750,
-                  }]).map(i => ({
-                    description: i.fabricType || i.productName || "Fabric",
-                    quantity: i.quantity, unit: i.unit || "Meters",
-                    unitPrice: i.unitPrice || 750,
-                    lineTotal: (i.quantity || 0) * (i.unitPrice || 750),
-                  })),
+                  orderId:       order.id,
+                  poNumber:      order.poNumber || order.id,
+                  invoiceNumber,
+                  invoiceDate:   new Date().toISOString(),
+                  materialsTotal,
+                  freightCost,
+                  totalAmount:   grandTotal,
+                  items:         lineItems,
                 },
               }),
             });
             console.log("[EDI 810] Sent:", await res810.json());
           } catch (e) { console.error("[EDI 810] Failed:", e.message); }
+
+          // Store grand total on order so 820 can validate against it
+          await update(ref(rtdb, `orders/${order.id}`), {
+            invoicedTotalAmount: grandTotal,
+            invoiceFreightCost:  freightCost,
+            updatedAt:           new Date().toISOString(),
+          });
 
         } else if (nextStep === 7) {
           // Step 6→7: Payment Received (820) — set by 820 webhook automatically
@@ -955,76 +985,102 @@ export const Orders = ({ orders, fabrics }) => {
 
               <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100">
                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Inventory Synchronization</h4>
-                
-                {selectedOrder.items ? (
-                  <div className="space-y-3">
-                    {selectedOrder.items.map((item, idx) => {
-                      const type = item.fabricType || item.productName?.split(" ")[0] || "Cotton";
-                      const color = item.color || "White";
-                      const texture = item.texture || "Smooth";
 
-                      const fabricStore = fabrics?.find(f => 
-                        f.type.toLowerCase() === type.toLowerCase() &&
-                        f.color.toLowerCase() === color.toLowerCase()
-                      );
+                {(() => {
+                  // Normalise to items array
+                  const orderItems = selectedOrder.items?.length > 0
+                    ? selectedOrder.items
+                    : [{
+                        fabricType: selectedOrder.fabricType,
+                        color:      selectedOrder.color,
+                        texture:    selectedOrder.texture,
+                        quantity:   selectedOrder.quantity,
+                        unit:       selectedOrder.unit || "Meters",
+                      }];
 
-                      const virtualQty = ((type.length * color.length * texture.length) % 150);
-                      const finalQty = fabricStore ? fabricStore.quantity : virtualQty;
+                  return (
+                    <div className="space-y-3">
+                      {orderItems.map((item, idx) => {
+                        const type    = (item.fabricType || item.productName?.split(" ")[0] || "").toLowerCase();
+                        const color   = (item.color   || "").toLowerCase();
+                        const texture = (item.texture || "").toLowerCase();
 
-                      return (
-                        <div key={idx} className="flex justify-between items-center p-3 bg-white rounded-xl border border-slate-100">
-                          <div>
-                            <div className="text-sm font-black text-slate-900">{item.fabricType || type}</div>
-                            <div className="text-[10px] text-slate-400 font-bold uppercase">{color} • {texture}</div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-sm font-black text-emerald-600">Requested: {conversions.formatQty(item.quantity, item.unit)}</div>
-                            <div className={cn(
-                              "text-[10px] font-bold uppercase",
-                              fabricStore ? "text-blue-600" : "text-emerald-600"
-                            )}>
-                              Stock: {finalQty} Rolls {fabricStore && `(~${conversions.rollsToMeters(finalQty)} Meters)`} {!fabricStore && "(Sync)"}
+                        // Exact match: type + color + texture
+                        let match = fabrics?.find(f =>
+                          f.type?.toLowerCase()    === type &&
+                          f.color?.toLowerCase()   === color &&
+                          f.texture?.toLowerCase() === texture
+                        );
+                        // Fallback: type + color only
+                        if (!match) {
+                          match = fabrics?.find(f =>
+                            f.type?.toLowerCase()  === type &&
+                            f.color?.toLowerCase() === color
+                          );
+                        }
+
+                        const totalRolls  = match ? Number(match.quantity || 0) : null;
+                        const reserved    = match ? Number(match.reserved  || 0) : 0;
+                        const freeRolls   = totalRolls !== null ? totalRolls - reserved : null;
+                        const freeMeters  = freeRolls !== null ? conversions.rollsToMeters(freeRolls) : null;
+                        const reorderLvl  = match?.reorderLevel || 15;
+
+                        const statusColor = freeRolls === null
+                          ? "text-slate-400"
+                          : freeRolls <= 0
+                          ? "text-red-600"
+                          : freeRolls <= reorderLvl
+                          ? "text-amber-600"
+                          : "text-emerald-600";
+
+                        const statusLabel = freeRolls === null
+                          ? "Not in inventory"
+                          : freeRolls <= 0
+                          ? "Out of stock"
+                          : freeRolls <= reorderLvl
+                          ? "Low stock"
+                          : "Available";
+
+                        return (
+                          <div key={idx} className="flex justify-between items-center p-3 bg-white rounded-xl border border-slate-100">
+                            <div>
+                              <div className="text-sm font-black text-slate-900">
+                                {item.fabricType || item.productName || "—"}
+                              </div>
+                              <div className="text-[10px] text-slate-400 font-bold uppercase">
+                                {item.color} • {item.texture}
+                              </div>
+                              <div className={cn("text-[9px] font-black uppercase tracking-widest mt-0.5", statusColor)}>
+                                {statusLabel}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm font-black text-blue-600">
+                                Requested: {conversions.formatQty(item.quantity, item.unit)}
+                              </div>
+                              {freeRolls !== null ? (
+                                <>
+                                  <div className={cn("text-[10px] font-black uppercase", statusColor)}>
+                                    Free: {freeRolls} rolls (~{freeMeters?.toFixed(0)}m)
+                                  </div>
+                                  {reserved > 0 && (
+                                    <div className="text-[9px] text-slate-400 font-bold">
+                                      {reserved} reserved / {totalRolls} total
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                <div className="text-[10px] font-black text-slate-400 uppercase">
+                                  SKU not found
+                                </div>
+                              )}
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-y-4 text-sm">
-                    <div>
-                      <div className="text-slate-400 font-medium">Fabric Match</div>
-                      <div className="font-bold text-slate-900 flex items-center gap-2">
-                        {selectedOrder.fabricType} ({selectedOrder.color})
-                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                      </div>
+                        );
+                      })}
                     </div>
-                    <div>
-                      <div className="text-slate-400 font-medium">Stock Availability</div>
-                      <div className="font-bold text-emerald-600 uppercase text-[10px] tracking-widest bg-emerald-50 px-2 py-1 rounded">
-                        {(() => {
-                           const type = selectedOrder.fabricType || "Cotton";
-                           const color = selectedOrder.color || "White";
-                           const texture = selectedOrder.texture || "Smooth";
-                           const match = fabrics?.find(f => 
-                             f.type.toLowerCase() === type.toLowerCase() &&
-                             f.color.toLowerCase() === color.toLowerCase()
-                           );
-                           const qty = match ? match.quantity : ((type.length * color.length * texture.length) % 150);
-                           return `${qty} Rolls Available`;
-                        })()}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-slate-400 font-medium">Order Velocity</div>
-                      <div className="font-bold text-slate-900">Standard Fulfillment</div>
-                    </div>
-                    <div>
-                      <div className="text-slate-400 font-medium">Required Stock</div>
-                      <div className="font-bold text-slate-900">{conversions.formatQty(selectedOrder.quantity, selectedOrder.unit)}</div>
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
 
               {/* EDI 214 Transit Status sub-stepper */}
@@ -1242,33 +1298,6 @@ export const Orders = ({ orders, fabrics }) => {
                         </div>
                       </div>
                     )}
-                    {selectedOrder.workflowStep === 0 && (
-                      <div className="flex flex-col gap-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Add Availability Note / Message</label>
-                        <div className="flex gap-2">
-                          <input 
-                            type="text" 
-                            placeholder="e.g. This is only my available stocks..." 
-                            className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500/10 outline-none"
-                            value={supplierNote}
-                            onChange={(e) => setSupplierNote(e.target.value)}
-                          />
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="gap-2 h-10"
-                            onClick={() => {
-                              if (!supplierNote) return;
-                              sendOrderMessage(selectedOrder.id, supplierNote);
-                              setSupplierNote("");
-                            }}
-                          >
-                            <MessageSquare className="w-4 h-4" /> Send Note
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
                     <div className="flex gap-3">
                       {selectedOrder.workflowStep === 0 && !showDeclinePrompt && (
                         <Button 

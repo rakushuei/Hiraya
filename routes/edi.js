@@ -661,13 +661,15 @@ router.post("/cargo/webhook", async (req, res) => {
         : payload.plateNumber || null;
 
       extraData = {
-        carrierAcceptedAt:  new Date().toISOString(),
-        assignedVehicle:    vehicle,          // store full object as-is
+        carrierAcceptedAt:        new Date().toISOString(),
+        assignedVehicle:          vehicle,
         plateNumber,
+        freightTotalAmount:       payload.totalAmount        || null,
+        carrierEstimatedDelivery: payload.estimatedDeliveryDate || null,
         // Always overwrite with the shipmentId from this 990 payload — this is
         // the authoritative ID CarGo will use for all subsequent 214 updates.
-        carrierShipmentId:  payload.shipmentId || null,
-        shipmentId:         payload.shipmentId || null,
+        carrierShipmentId:        payload.shipmentId || null,
+        shipmentId:               payload.shipmentId || null,
       };
 
     // ── EDI 990 — Rejected ────────────────────────────────────────────────────

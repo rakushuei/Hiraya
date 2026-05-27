@@ -10,6 +10,13 @@ export const Invoice = ({ order }) => {
   const invoiceNo = order.invoiceNumber || `INV-${order.poNumber?.replace('PO-', '') || order.id?.replace('MAT-', '')}`;
   const invoiceDate = order.updatedAt ? new Date(order.updatedAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
 
+  const materialsSubtotal = (order.items || []).reduce((s, i) => s + (Number(i.quantity)||0) * (Number(i.unitPrice || i.price)||0), 0)
+    || Number(order.totalAmount || 0);
+  const freightCost   = Number(order.invoiceFreightCost || order.freightTotalAmount || 0);
+  const grandTotal    = order.invoicedTotalAmount
+    ? Number(order.invoicedTotalAmount)
+    : materialsSubtotal + freightCost;
+
   return (
     <div className="bg-white text-slate-900 p-8 md:p-12 font-sans overflow-hidden relative">
       <div className="flex flex-col md:flex-row justify-between items-start gap-8 mb-12 mt-12 md:mt-0">
@@ -67,7 +74,7 @@ export const Invoice = ({ order }) => {
             </div>
             <div className="flex justify-between items-center pt-2 border-t border-slate-200">
               <span className="text-xs font-black text-slate-900 uppercase">Total Amount Due</span>
-              <span className="text-lg font-black text-blue-600">₱{(order.totalAmount || 0).toLocaleString()}</span>
+              <span className="text-lg font-black text-blue-600">₱{grandTotal.toLocaleString()}</span>
             </div>
           </div>
         </div>
@@ -104,6 +111,26 @@ export const Invoice = ({ order }) => {
                 </td>
               </tr>
             ))}
+            {/* Freight / Shipping fee line */}
+            {freightCost > 0 && (
+              <tr className="bg-slate-50/50">
+                <td className="py-4">
+                  <p className="text-sm font-black text-slate-700">Freight / Shipping Fee</p>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                    CarGo Logistics · LTL Service
+                  </p>
+                </td>
+                <td className="py-4 text-center">
+                  <p className="text-sm font-black text-slate-700">1 <span className="text-[10px] text-slate-400">Service</span></p>
+                </td>
+                <td className="py-4 text-right">
+                  <p className="text-sm font-black text-slate-700">₱{freightCost.toLocaleString()}</p>
+                </td>
+                <td className="py-4 text-right">
+                  <p className="text-sm font-black text-slate-700">₱{freightCost.toLocaleString()}</p>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
