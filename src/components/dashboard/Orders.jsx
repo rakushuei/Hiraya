@@ -1323,12 +1323,42 @@ export const Orders = ({ orders, fabrics }) => {
                                   </div>
                                   <div>
                                     <p className="text-xs font-black text-white uppercase tracking-widest">EDI 204 — Load Tender</p>
-                                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Ready to dispatch to CarGo Logistics</p>
+                                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Configure and dispatch to CarGo Logistics</p>
                                   </div>
                                 </div>
                                 <span className="px-2.5 py-1 rounded-full text-[8px] font-black bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase tracking-widest">
                                   Pending Send
                                 </span>
+                              </div>
+
+                              {/* Editable fields */}
+                              <div className="space-y-3">
+                                {/* Pickup Date */}
+                                <div>
+                                  <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest mb-1">Pickup Date</p>
+                                  <input
+                                    type="date"
+                                    defaultValue={new Date(Date.now() + 86400000).toISOString().split("T")[0]}
+                                    id={`pickup-date-${selectedOrder.id}`}
+                                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-500/40"
+                                  />
+                                </div>
+
+                                {/* Delivery Location */}
+                                <div>
+                                  <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest mb-1">Delivery Location</p>
+                                  <select
+                                    id={`delivery-city-${selectedOrder.id}`}
+                                    defaultValue={selectedOrder.deliveryCity?.split(",")[0]?.trim() || "Calamba"}
+                                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-500/40"
+                                  >
+                                    <option value="Calamba">Calamba, Laguna (4027)</option>
+                                    <option value="Dasmarinas">Dasmariñas, Cavite (4114)</option>
+                                    <option value="Manila">Manila, NCR (1000)</option>
+                                    <option value="Antipolo">Antipolo, Rizal (1870)</option>
+                                    <option value="Cebu">Cebu City (6000)</option>
+                                  </select>
+                                </div>
                               </div>
 
                               <div className="grid grid-cols-3 gap-2 text-center">
@@ -1348,7 +1378,15 @@ export const Orders = ({ orders, fabrics }) => {
 
                               <button
                                 disabled={sendingTender}
-                                onClick={() => sendLoadTender(selectedOrder)}
+                                onClick={() => {
+                                  const pickupDate   = document.getElementById(`pickup-date-${selectedOrder.id}`)?.value;
+                                  const deliveryCity = document.getElementById(`delivery-city-${selectedOrder.id}`)?.value;
+                                  sendLoadTender({
+                                    ...selectedOrder,
+                                    pickupDate:   pickupDate   || undefined,
+                                    deliveryCity: deliveryCity || selectedOrder.deliveryCity,
+                                  });
+                                }}
                                 className={cn(
                                   "w-full flex items-center justify-center gap-2.5 h-12 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
                                   sendingTender
@@ -1895,7 +1933,7 @@ export const Orders = ({ orders, fabrics }) => {
         )}
         {isPoOpen && selectedOrder && (
           <ModalContainer key="po-modal" onClose={() => setIsPoOpen(false)} title="Purchase Order Document" size="large">
-            <div className="overflow-y-auto max-h-[75vh] px-4">
+            <div id="po-print-area" className="overflow-y-auto max-h-[75vh] px-4">
               <PurchaseOrder order={selectedOrder} />
             </div>
             <div className="flex gap-4 mt-8 px-4">
@@ -1919,10 +1957,96 @@ export const Orders = ({ orders, fabrics }) => {
                <Button 
                 className="flex-[2] gap-2 bg-blue-600 text-white hover:bg-blue-700" 
                 onClick={() => {
-                  alert('Purchase Order copy saved to local drive.');
+                  const o = selectedOrder;
+                  const items = o.items || [{ fabricType: o.fabricType, color: o.color, texture: o.texture, quantity: o.quantity, unit: o.unit || "Yards", unitPrice: o.unitPrice || 0, materialNo: "" }];
+                  const grandTotal = items.reduce((s, i) => s + (Number(i.quantity)||0)*(Number(i.unitPrice)||0), 0);
+                  const html = `<!DOCTYPE html><html><head><title>Purchase Order — ${o.poNumber || o.id}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#0f172a;background:#fff;padding:40px;}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;padding-bottom:24px;border-bottom:2px solid #f1f5f9;}
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand-icon{width:48px;height:48px;background:#0f172a;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:900;}
+  .brand-name{font-size:24px;font-weight:900;letter-spacing:-0.5px;text-transform:uppercase;}
+  .brand-sub{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:2px;margin-top:2px;}
+  .badge{display:inline-block;background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;border-radius:20px;padding:4px 12px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;}
+  .po-num{font-size:28px;font-weight:900;color:#0f172a;letter-spacing:-1px;margin-top:6px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin:24px 0;padding:24px 0;border-top:1px solid #f1f5f9;border-bottom:1px solid #f1f5f9;}
+  .label{font-size:9px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;}
+  .value{font-size:13px;font-weight:700;color:#0f172a;}
+  .value-sm{font-size:12px;color:#64748b;margin-top:2px;}
+  .summary-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;}
+  table{width:100%;border-collapse:collapse;margin:24px 0;}
+  thead tr{background:#0f172a;color:#fff;}
+  th{padding:12px 16px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;text-align:left;}
+  th:last-child,td:last-child{text-align:right;}
+  th:nth-child(3),td:nth-child(3){text-align:center;}
+  td{padding:14px 16px;font-size:12px;border-bottom:1px solid #f1f5f9;}
+  .item-name{font-weight:900;color:#0f172a;}
+  .item-sub{font-size:10px;color:#94a3b8;font-weight:700;text-transform:uppercase;margin-top:2px;}
+  .footer{display:flex;justify-content:space-between;align-items:flex-end;margin-top:32px;padding-top:24px;border-top:1px solid #f1f5f9;}
+  .footer-note{font-size:10px;color:#94a3b8;max-width:320px;line-height:1.6;}
+  .totals{text-align:right;}
+  .total-row{display:flex;justify-content:space-between;gap:48px;margin-bottom:8px;font-size:12px;color:#64748b;}
+  .grand-total{display:flex;justify-content:space-between;gap:48px;padding-top:12px;border-top:2px solid #0f172a;font-size:20px;font-weight:900;color:#1B4FFF;}
+  @media print{body{padding:0;}@page{margin:1.5cm;size:A4;}}
+</style></head><body>
+<div class="header">
+  <div class="brand">
+    <div class="brand-icon">H</div>
+    <div><div class="brand-name">Hiraya</div><div class="brand-sub">Industrial Fulfillment</div></div>
+  </div>
+  <div style="text-align:right">
+    <div class="badge">Verified PO Document</div>
+    <div class="po-num">#${o.poNumber || o.id}</div>
+  </div>
+</div>
+<div class="grid2">
+  <div>
+    <div class="label">Supplier</div>
+    <div class="value">Hiraya Industries</div>
+    <div class="value-sm">Manufacturing Hub Alpha, Santo Tomas<br>Batangas, 4234, PH<br>fulfillment@hiraya.io</div>
+    <div style="margin-top:16px"><div class="label">Delivery Destination</div>
+    <div class="value">${o.deliveryName || "—"}</div>
+    <div class="value-sm">${o.deliveryAddress || "—"}<br>${o.deliveryCity || "—"}</div></div>
+  </div>
+  <div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+      <div class="summary-box"><div class="label">Issue Date</div><div class="value">${new Date(o.createdAt||Date.now()).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div></div>
+      <div class="summary-box"><div class="label">Desired ETA</div><div class="value">${o.requestedDate ? new Date(o.requestedDate).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}) : "—"}</div></div>
+    </div>
+    <div class="label">Customer Entity</div>
+    <div class="value">${o.customer || o.customerName || "—"}</div>
+    <div class="value-sm">${o.companyAddress || ""}<br>${o.companyCity || ""}</div>
+  </div>
+</div>
+<table>
+  <thead><tr><th>Material Resource</th><th>Material No.</th><th>Qty</th><th>Rate</th><th>Total (PHP)</th></tr></thead>
+  <tbody>
+    ${items.map(item => `<tr>
+      <td><div class="item-name">${item.fabricType || item.productName || "—"}</div><div class="item-sub">${item.color || ""} • ${item.texture || ""} UNIT SPEC</div></td>
+      <td style="font-family:monospace;font-size:10px;color:#64748b">${item.materialNo || "—"}</td>
+      <td style="text-align:center;font-weight:900">${Number(item.quantity).toLocaleString()}</td>
+      <td style="text-align:right">₱${Number(item.unitPrice||0).toLocaleString(undefined,{minimumFractionDigits:2})}</td>
+      <td style="text-align:right;font-weight:900">₱${((Number(item.quantity)||0)*(Number(item.unitPrice)||0)).toLocaleString(undefined,{minimumFractionDigits:2})}</td>
+    </tr>`).join("")}
+  </tbody>
+</table>
+<div class="footer">
+  <div class="footer-note">This document is a legally binding requisition protocol generated between Supplier "Hiraya" and Manufacturer Plant specified above. Subject to standard supply chain terms and conditions.</div>
+  <div class="totals">
+    <div class="grand-total"><span>Grand Total Payable</span><span>₱${grandTotal.toLocaleString(undefined,{minimumFractionDigits:2})}</span></div>
+  </div>
+</div>
+</body></html>`;
+                  const win = window.open("", "_blank");
+                  win.document.write(html);
+                  win.document.close();
+                  win.focus();
+                  setTimeout(() => { win.print(); }, 600);
                 }}
                >
-                 <Zap className="w-4 h-4" /> EXPORT PDF
+                 <Download className="w-4 h-4" /> Export PDF
                </Button>
             </div>
           </ModalContainer>
@@ -1953,15 +2077,111 @@ export const Orders = ({ orders, fabrics }) => {
               <Button
                 className="flex-1 gap-2 bg-slate-900 text-white hover:bg-slate-800"
                 onClick={() => {
-                  const invoiceEl = document.getElementById("invoice-print-area");
-                  if (!invoiceEl) return;
+                  const o = selectedOrder;
+                  const items = o.items || [{ fabricType: o.fabricType, color: o.color, texture: o.texture, quantity: o.quantity, unit: o.unit || "Meters", unitPrice: o.unitPrice || 0, materialNo: "" }];
+                  const invoiceNo = o.invoiceNumber || `INV-${(o.poNumber||o.id||"").replace(/[^0-9]/g,"")}`;
+                  const invoiceDate = o.updatedAt ? new Date(o.updatedAt).toISOString().split("T")[0] : new Date().toISOString().split("T")[0];
+                  const materialsTotal = items.reduce((s,i)=>s+(Number(i.quantity)||0)*(Number(i.unitPrice||i.price)||0),0) || Number(o.totalAmount||0);
+                  const freightCost = Number(o.invoiceFreightCost||o.freightTotalAmount||0);
+                  const grandTotal = o.invoicedTotalAmount ? Number(o.invoicedTotalAmount) : materialsTotal + freightCost;
+                  const isPaid = o.paymentStatus === "Paid";
+                  const html = `<!DOCTYPE html><html><head><title>Invoice — ${invoiceNo}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#0f172a;background:#fff;padding:40px;}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;}
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand-icon{width:48px;height:48px;background:#0f172a;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:900;}
+  .brand-name{font-size:24px;font-weight:900;letter-spacing:-0.5px;text-transform:uppercase;}
+  .brand-sub{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:2px;margin-top:2px;}
+  .brand-addr{font-size:11px;color:#64748b;margin-top:8px;line-height:1.6;}
+  .inv-badge{display:inline-block;background:#2563eb;color:#fff;border-radius:20px;padding:4px 12px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
+  .inv-num{font-size:28px;font-weight:900;color:#0f172a;letter-spacing:-1px;}
+  .inv-date{font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-top:4px;}
+  .section{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin:24px 0;padding:24px 0;border-top:1px solid #f1f5f9;border-bottom:1px solid #f1f5f9;}
+  .label{font-size:9px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;}
+  .value{font-size:14px;font-weight:900;color:#0f172a;}
+  .value-sm{font-size:12px;color:#64748b;margin-top:2px;line-height:1.5;}
+  .summary-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;}
+  .status-paid{display:inline-block;background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;border-radius:20px;padding:3px 10px;font-size:10px;font-weight:900;text-transform:uppercase;}
+  .status-pending{display:inline-block;background:#fffbeb;color:#d97706;border:1px solid #fde68a;border-radius:20px;padding:3px 10px;font-size:10px;font-weight:900;text-transform:uppercase;}
+  .sum-row{display:flex;justify-content:space-between;margin-bottom:10px;font-size:12px;}
+  .sum-total{display:flex;justify-content:space-between;padding-top:12px;border-top:1px solid #e2e8f0;font-size:14px;font-weight:900;color:#2563eb;}
+  table{width:100%;border-collapse:collapse;margin:24px 0;}
+  thead tr{background:#0f172a;color:#fff;}
+  th{padding:12px 16px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;text-align:left;}
+  th:last-child,td:last-child{text-align:right;}
+  th:nth-child(2),td:nth-child(2){text-align:center;}
+  td{padding:14px 16px;font-size:12px;border-bottom:1px solid #f1f5f9;}
+  .item-name{font-weight:900;color:#0f172a;}
+  .item-sub{font-size:10px;color:#94a3b8;font-weight:700;text-transform:uppercase;margin-top:2px;}
+  .freight-row td{background:#f8fafc;}
+  .footer{display:flex;justify-content:space-between;align-items:flex-end;margin-top:32px;padding-top:24px;border-top:1px solid #f1f5f9;}
+  .footer-note{font-size:10px;color:#94a3b8;max-width:320px;line-height:1.6;}
+  .totals{text-align:right;min-width:240px;}
+  .t-row{display:flex;justify-content:space-between;gap:32px;margin-bottom:8px;font-size:12px;color:#64748b;}
+  .t-grand{display:flex;justify-content:space-between;gap:32px;padding-top:12px;border-top:2px solid #0f172a;font-size:20px;font-weight:900;color:#2563eb;}
+  @media print{body{padding:0;}@page{margin:1.5cm;size:A4;}}
+</style></head><body>
+<div class="header">
+  <div>
+    <div class="brand">
+      <div class="brand-icon">H</div>
+      <div><div class="brand-name">Hiraya</div><div class="brand-sub">Industrial Fulfillment</div></div>
+    </div>
+    <div class="brand-addr">Manufacturing Hub Alpha, Santo Tomas<br>Batangas, 4234, PH<br>VAT ID: PH-987654321</div>
+  </div>
+  <div style="text-align:right">
+    <div class="inv-badge">EDI 810 Invoice</div>
+    <div class="inv-num">${invoiceNo}</div>
+    <div class="inv-date">Billing Date: ${invoiceDate}</div>
+  </div>
+</div>
+<div class="section">
+  <div>
+    <div class="label">Bill To (Manufacturer)</div>
+    <div class="value">${o.customer || o.customerName || "—"}</div>
+    <div class="value-sm">${o.companyAddress || o.deliveryAddress || ""}<br>${o.companyCity || o.deliveryCity || ""}<br>Reference PO: ${o.poNumber || o.id}</div>
+  </div>
+  <div class="summary-box">
+    <div class="label" style="margin-bottom:12px">Payment Summary</div>
+    <div class="sum-row"><span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase">Status</span><span class="${isPaid?"status-paid":"status-pending"}">${isPaid?"PAID":"PENDING"}</span></div>
+    <div class="sum-row"><span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase">Terms</span><span style="font-weight:900;font-style:italic">Net 30</span></div>
+    <div class="sum-total"><span>Total Amount Due</span><span>₱${grandTotal.toLocaleString()}</span></div>
+  </div>
+</div>
+<table>
+  <thead><tr><th>Description</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
+  <tbody>
+    ${items.map(item=>`<tr>
+      <td><div class="item-name">${item.materialName||item.productName||item.fabricType||"—"}</div><div class="item-sub">${item.fabricType||""} • ${item.color||""} • ${item.texture||""}${item.materialNo?` | SKU: ${item.materialNo}`:""}</div></td>
+      <td style="text-align:center;font-weight:900">${Number(item.quantity).toLocaleString()} <span style="font-size:10px;color:#94a3b8">${item.unit||""}</span></td>
+      <td style="text-align:right">₱${Number(item.unitPrice||item.price||0).toLocaleString()}</td>
+      <td style="text-align:right;font-weight:900">₱${((Number(item.quantity)||0)*(Number(item.unitPrice||item.price)||0)).toLocaleString()}</td>
+    </tr>`).join("")}
+    ${freightCost>0?`<tr class="freight-row">
+      <td><div class="item-name">Freight / Shipping Fee</div><div class="item-sub">CarGo Logistics · LTL Service</div></td>
+      <td style="text-align:center;font-weight:900">1 <span style="font-size:10px;color:#94a3b8">Service</span></td>
+      <td style="text-align:right">₱${freightCost.toLocaleString()}</td>
+      <td style="text-align:right;font-weight:900">₱${freightCost.toLocaleString()}</td>
+    </tr>`:""}
+  </tbody>
+</table>
+<div class="footer">
+  <div class="footer-note">This invoice is generated automatically by Hiraya ERP system under EDI Protocol 810. All materials identified by SHA-256 hashes for shipment tracking. Payments must be settled via the Manufacturer Portal digital bridge.</div>
+  <div class="totals">
+    <div class="t-row"><span>Subtotal</span><span>₱${materialsTotal.toLocaleString()}</span></div>
+    ${freightCost>0?`<div class="t-row"><span>Freight</span><span>₱${freightCost.toLocaleString()}</span></div>`:""}
+    <div class="t-row"><span>VAT (12%)</span><span>₱0.00 <span style="font-size:9px;color:#94a3b8">(Inclusive)</span></span></div>
+    <div class="t-grand"><span>Balance Due</span><span>₱${grandTotal.toLocaleString()}</span></div>
+  </div>
+</div>
+</body></html>`;
                   const win = window.open("", "_blank");
-                  win.document.write(`<!DOCTYPE html><html><head><title>Invoice</title>
-                    <style>body{margin:0;font-family:sans-serif;}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style>
-                    </head><body>${invoiceEl.innerHTML}</body></html>`);
+                  win.document.write(html);
                   win.document.close();
                   win.focus();
-                  setTimeout(() => { win.print(); }, 500);
+                  setTimeout(() => { win.print(); }, 600);
                 }}
               >
                 <Download className="w-4 h-4" /> Export PDF

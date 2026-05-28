@@ -49,3 +49,19 @@
 .animate-scroll {
   animation: scroll 30s linear infinite;
 }
+
+/* ── Print styles for PDF export ─────────────────────────────────────────── */
+@media print {
+  body > *:not(#hiraya-print-root) { display: none !important; }
+  #hiraya-print-root {
+    display: block !important;
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: white;
+    padding: 2rem;
+    overflow: visible;
+  }
+  #hiraya-print-root * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  @page { margin: 1.5cm; size: A4; }
+}

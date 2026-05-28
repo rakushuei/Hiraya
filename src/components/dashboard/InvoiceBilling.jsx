@@ -219,13 +219,13 @@ function FreightInvoiceTab() {
                       <div className="flex flex-col">
                         <span className={cn(
                           "text-sm font-black",
-                          new Date(inv.dueDate) < new Date() && inv.status !== "Paid"
+                          new Date(inv.dueDate + "T00:00:00") < new Date() && inv.status !== "Paid"
                             ? "text-red-600"
                             : "text-slate-900"
                         )}>
-                          {new Date(inv.dueDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                          {new Date(inv.dueDate + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                         </span>
-                        {new Date(inv.dueDate) < new Date() && inv.status !== "Paid" && (
+                        {new Date(inv.dueDate + "T00:00:00") < new Date() && inv.status !== "Paid" && (
                           <span className="text-[9px] font-black text-red-500 uppercase tracking-widest">Overdue</span>
                         )}
                       </div>
@@ -585,6 +585,37 @@ export const InvoiceBilling = ({ orders = [] }) => {
             {/* Scrollable invoice content */}
             <div className="overflow-y-auto flex-1">
               <Invoice order={viewingInvoice} />
+            </div>
+            {/* Footer */}
+            <div className="flex gap-3 px-8 py-5 border-t border-slate-100 flex-shrink-0">
+              <Button variant="outline" className="flex-1" onClick={() => setViewingInvoice(null)}>Close</Button>
+              <Button
+                className="flex-1 gap-2 bg-slate-900 text-white hover:bg-slate-800"
+                onClick={() => {
+                  const o = viewingInvoice;
+                  const items = o.items || [{ fabricType: o.fabricType, color: o.color, texture: o.texture, quantity: o.quantity, unit: o.unit || "Meters", unitPrice: o.unitPrice || 0 }];
+                  const invoiceNo = o.invoiceNumber || `INV-${(o.poNumber||o.id||"").replace(/[^0-9]/g,"")}`;
+                  const invoiceDate = o.updatedAt ? new Date(o.updatedAt).toISOString().split("T")[0] : new Date().toISOString().split("T")[0];
+                  const materialsTotal = items.reduce((s,i)=>s+(Number(i.quantity)||0)*(Number(i.unitPrice||i.price)||0),0) || Number(o.totalAmount||0);
+                  const freightCost = Number(o.invoiceFreightCost||o.freightTotalAmount||0);
+                  const grandTotal = o.invoicedTotalAmount ? Number(o.invoicedTotalAmount) : materialsTotal + freightCost;
+                  const isPaid = o.paymentStatus === "Paid";
+                  const html = `<!DOCTYPE html><html><head><title>Invoice — ${invoiceNo}</title>
+<style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#0f172a;background:#fff;padding:40px;}.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;}.brand{display:flex;align-items:center;gap:12px;}.brand-icon{width:48px;height:48px;background:#0f172a;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:900;}.brand-name{font-size:24px;font-weight:900;letter-spacing:-0.5px;text-transform:uppercase;}.brand-sub{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:2px;margin-top:2px;}.brand-addr{font-size:11px;color:#64748b;margin-top:8px;line-height:1.6;}.inv-badge{display:inline-block;background:#2563eb;color:#fff;border-radius:20px;padding:4px 12px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}.inv-num{font-size:28px;font-weight:900;color:#0f172a;letter-spacing:-1px;}.inv-date{font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-top:4px;}.section{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin:24px 0;padding:24px 0;border-top:1px solid #f1f5f9;border-bottom:1px solid #f1f5f9;}.label{font-size:9px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;}.value{font-size:14px;font-weight:900;color:#0f172a;}.value-sm{font-size:12px;color:#64748b;margin-top:2px;line-height:1.5;}.summary-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;}.status-paid{display:inline-block;background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;border-radius:20px;padding:3px 10px;font-size:10px;font-weight:900;text-transform:uppercase;}.status-pending{display:inline-block;background:#fffbeb;color:#d97706;border:1px solid #fde68a;border-radius:20px;padding:3px 10px;font-size:10px;font-weight:900;text-transform:uppercase;}.sum-row{display:flex;justify-content:space-between;margin-bottom:10px;font-size:12px;}.sum-total{display:flex;justify-content:space-between;padding-top:12px;border-top:1px solid #e2e8f0;font-size:14px;font-weight:900;color:#2563eb;}table{width:100%;border-collapse:collapse;margin:24px 0;}thead tr{background:#0f172a;color:#fff;}th{padding:12px 16px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;text-align:left;}th:last-child,td:last-child{text-align:right;}th:nth-child(2),td:nth-child(2){text-align:center;}td{padding:14px 16px;font-size:12px;border-bottom:1px solid #f1f5f9;}.item-name{font-weight:900;color:#0f172a;}.item-sub{font-size:10px;color:#94a3b8;font-weight:700;text-transform:uppercase;margin-top:2px;}.freight-row td{background:#f8fafc;}.footer{display:flex;justify-content:space-between;align-items:flex-end;margin-top:32px;padding-top:24px;border-top:1px solid #f1f5f9;}.footer-note{font-size:10px;color:#94a3b8;max-width:320px;line-height:1.6;}.totals{text-align:right;min-width:240px;}.t-row{display:flex;justify-content:space-between;gap:32px;margin-bottom:8px;font-size:12px;color:#64748b;}.t-grand{display:flex;justify-content:space-between;gap:32px;padding-top:12px;border-top:2px solid #0f172a;font-size:20px;font-weight:900;color:#2563eb;}@media print{body{padding:0;}@page{margin:1.5cm;size:A4;}}</style></head><body>
+<div class="header"><div><div class="brand"><div class="brand-icon">H</div><div><div class="brand-name">Hiraya</div><div class="brand-sub">Industrial Fulfillment</div></div></div><div class="brand-addr">Manufacturing Hub Alpha, Santo Tomas<br>Batangas, 4234, PH<br>VAT ID: PH-987654321</div></div><div style="text-align:right"><div class="inv-badge">EDI 810 Invoice</div><div class="inv-num">${invoiceNo}</div><div class="inv-date">Billing Date: ${invoiceDate}</div></div></div>
+<div class="section"><div><div class="label">Bill To (Manufacturer)</div><div class="value">${o.customer||o.customerName||"—"}</div><div class="value-sm">${o.companyAddress||o.deliveryAddress||""}<br>${o.companyCity||o.deliveryCity||""}<br>Reference PO: ${o.poNumber||o.id}</div></div><div class="summary-box"><div class="label" style="margin-bottom:12px">Payment Summary</div><div class="sum-row"><span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase">Status</span><span class="${isPaid?"status-paid":"status-pending"}">${isPaid?"PAID":"PENDING"}</span></div><div class="sum-row"><span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase">Terms</span><span style="font-weight:900;font-style:italic">Net 30</span></div><div class="sum-total"><span>Total Amount Due</span><span>₱${grandTotal.toLocaleString()}</span></div></div></div>
+<table><thead><tr><th>Description</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead><tbody>${items.map(item=>`<tr><td><div class="item-name">${item.materialName||item.productName||item.fabricType||"—"}</div><div class="item-sub">${item.fabricType||""} • ${item.color||""} • ${item.texture||""}${item.materialNo?` | SKU: ${item.materialNo}`:""}</div></td><td style="text-align:center;font-weight:900">${Number(item.quantity).toLocaleString()} <span style="font-size:10px;color:#94a3b8">${item.unit||""}</span></td><td style="text-align:right">₱${Number(item.unitPrice||item.price||0).toLocaleString()}</td><td style="text-align:right;font-weight:900">₱${((Number(item.quantity)||0)*(Number(item.unitPrice||item.price)||0)).toLocaleString()}</td></tr>`).join("")}${freightCost>0?`<tr class="freight-row"><td><div class="item-name">Freight / Shipping Fee</div><div class="item-sub">CarGo Logistics · LTL Service</div></td><td style="text-align:center;font-weight:900">1 <span style="font-size:10px;color:#94a3b8">Service</span></td><td style="text-align:right">₱${freightCost.toLocaleString()}</td><td style="text-align:right;font-weight:900">₱${freightCost.toLocaleString()}</td></tr>`:""}</tbody></table>
+<div class="footer"><div class="footer-note">This invoice is generated automatically by Hiraya ERP system under EDI Protocol 810. All materials identified by SHA-256 hashes for shipment tracking. Payments must be settled via the Manufacturer Portal digital bridge.</div><div class="totals"><div class="t-row"><span>Subtotal</span><span>₱${materialsTotal.toLocaleString()}</span></div>${freightCost>0?`<div class="t-row"><span>Freight</span><span>₱${freightCost.toLocaleString()}</span></div>`:""}<div class="t-row"><span>VAT (12%)</span><span>₱0.00 <span style="font-size:9px;color:#94a3b8">(Inclusive)</span></span></div><div class="t-grand"><span>Balance Due</span><span>₱${grandTotal.toLocaleString()}</span></div></div></div>
+</body></html>`;
+                  const win = window.open("", "_blank");
+                  win.document.write(html);
+                  win.document.close();
+                  win.focus();
+                  setTimeout(() => { win.print(); }, 600);
+                }}
+              >
+                <Download className="w-4 h-4" /> Export PDF
+              </Button>
             </div>
           </div>
         </div>

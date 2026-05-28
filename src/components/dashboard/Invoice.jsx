@@ -17,6 +17,12 @@ export const Invoice = ({ order }) => {
     ? Number(order.invoicedTotalAmount)
     : materialsSubtotal + freightCost;
 
+  const isPaid       = order.paymentStatus === "Paid";
+  const statusLabel  = isPaid ? "PAID" : "PENDING";
+  const statusClass  = isPaid
+    ? "bg-emerald-50 text-emerald-600 border-emerald-100"
+    : "bg-amber-50 text-amber-600 border-amber-100";
+
   return (
     <div className="bg-white text-slate-900 p-8 md:p-12 font-sans overflow-hidden relative">
       <div className="flex flex-col md:flex-row justify-between items-start gap-8 mb-12 mt-12 md:mt-0">
@@ -66,7 +72,7 @@ export const Invoice = ({ order }) => {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <span className="text-xs font-bold text-slate-500 uppercase">Status</span>
-              <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-100 font-black">PAID</Badge>
+              <Badge variant="outline" className={cn("font-black", statusClass)}>{statusLabel}</Badge>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-xs font-bold text-slate-500 uppercase">Terms</span>

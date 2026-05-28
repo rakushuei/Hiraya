@@ -869,12 +869,15 @@ router.post("/receive/freight-invoice", async (req, res) => {
       return res.status(400).json({ error: "Field 'totalAmount' is required." });
 
     const recordId = invoiceId.replace(/[^a-zA-Z0-9-_]/g, "_");
+    const incomingStatus = status || "Pending";
     const record = {
       invoiceId,
       shipmentId,
-      status:      status || "Pending",
+      status:      incomingStatus,
       totalAmount: Number(totalAmount),
       dueDate:     dueDate || null,
+      // If logistics sends status "Paid" directly, record the paid timestamp
+      ...(incomingStatus.toLowerCase() === "paid" ? { paidAt: new Date().toISOString() } : {}),
       receivedAt:  new Date().toISOString(),
       updatedAt:   new Date().toISOString(),
     };

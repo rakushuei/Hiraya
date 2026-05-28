@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Zap, Search, CheckCircle2, Package, FileText, CreditCard,
   Truck, XCircle, Clock, ArrowRight, ArrowLeft, X, Code, ChevronDown, ChevronUp
 } from "lucide-react";
 import { Button } from "../ui/Common";
 import { cn } from "../../lib/utils";
+import { rtdb } from "../../lib/firebase";
+import { ref, onValue } from "firebase/database";
 import { getX12POSegments, getX12InvoiceSegments, getX12_855, getX12_204, getX12_990, getX12_214, getX12_861, getX12_820, getX12_997, segmentsToX12String } from "../../lib/ediUtils";
 
 // ── EDI step definitions — mirrors WORKFLOW_STEPS in Orders.jsx (8 steps, 0-7) ──
@@ -261,6 +263,23 @@ function EDIDetailModal({ order, onClose }) {
   const currentEdi = EDI_STEPS[currentEdiIdx];
   const [viewer, setViewer]         = useState(null); // { title, content }
   const [show214, setShow214]       = useState(false);
+  const [showFreight, setShowFreight] = useState(false);
+
+  // ── Load matching freight invoice from RTDB freightInvoices node ──────────
+  const [freightInv, setFreightInv] = useState(null);
+  useEffect(() => {
+    const shipId = order.carrierShipmentId || order.shipmentId;
+    if (!shipId) return;
+    // Listen to the whole freightInvoices node and find the matching record
+    const dbRef = ref(rtdb, "freightInvoices");
+    const unsub = onValue(dbRef, snap => {
+      const data = snap.val();
+      if (!data) { setFreightInv(null); return; }
+      const match = Object.values(data).find(inv => inv.shipmentId === shipId);
+      setFreightInv(match || null);
+    });
+    return () => unsub();
+  }, [order.carrierShipmentId, order.shipmentId]);
 
   const openX12 = (step) => {
     const p = getEdiPayload(step, order);
@@ -467,6 +486,122 @@ function EDIDetailModal({ order, onClose }) {
                 })}
               </div>
             </div>
+
+            {/* ── Freight EDI (Logistics Billing Cycle) ── */}
+            {(() => {
+              // freightInv is loaded from RTDB via useEffect above — real data, not order fields
+              const freightPaid = freightInv?.status === "Paid";
+              const anyFreight  = !!freightInv;
+
+              const FREIGHT_STEPS = [
+                {
+                  code: "210", name: "Freight Invoice", dir: "IN", from: "CarGo", to: "Hiraya",
+                  // EDI 210 done = freight invoice record exists in RTDB
+                  done: !!freightInv,
+                  json: freightInv ? {
+                    shipmentId:  freightInv.shipmentId,
+                    invoiceId:   freightInv.invoiceId,
+                    totalAmount: freightInv.totalAmount,
+                    dueDate:     freightInv.dueDate || "—",
+                    status:      freightInv.status || "Pending",
+                  } : null,
+                },
+                {
+                  code: "820", name: "Freight Payment", dir: "OUT", from: "Hiraya", to: "CarGo",
+                  // EDI 820 done = we marked the invoice as Paid
+                  done: freightPaid,
+                  json: freightPaid ? {
+                    shipmentId:    freightInv.shipmentId,
+                    invoiceId:     freightInv.invoiceId,
+                    paymentStatus: "PAID",
+                    paidAt:        freightInv.paidAt || "—",
+                  } : null,
+                },
+                {
+                  code: "997", name: "Freight Receipt", dir: "IN", from: "CarGo", to: "Hiraya",
+                  // EDI 997 done = logistics sent back a receipt PDF (pdfUrl present)
+                  done: !!freightInv?.pdfUrl,
+                  json: freightInv?.pdfUrl ? {
+                    shipmentId: freightInv.shipmentId,
+                    invoiceId:  freightInv.invoiceId,
+                    pdfUrl:     freightInv.pdfUrl,
+                    receivedAt: freightInv.receivedAt || "—",
+                    status:     freightInv.status || "Paid",
+                  } : null,
+                },
+              ];
+
+              return (
+                <div>
+                  <button
+                    onClick={() => setShowFreight(v => !v)}
+                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Truck className="w-4 h-4 text-slate-400" />
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                        Freight EDI — Logistics Billing
+                      </span>
+                      {anyFreight ? (
+                        <span className={cn(
+                          "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest",
+                          freightPaid ? "bg-emerald-100 text-emerald-600" : "bg-amber-100 text-amber-600"
+                        )}>
+                          {freightPaid ? "Paid" : "Pending"}
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-slate-100 text-slate-400">
+                          No Invoice Yet
+                        </span>
+                      )}
+                    </div>
+                    {showFreight
+                      ? <ChevronUp className="w-4 h-4 text-slate-400" />
+                      : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                  </button>
+
+                  {showFreight && (
+                    <div className="mt-1.5 space-y-1.5 border-l-2 border-slate-200 ml-3 pl-3">
+                      {FREIGHT_STEPS.map((fs, fi) => (
+                        <div key={fi} className={cn(
+                          "flex items-center gap-2 px-3 py-2 rounded-xl",
+                          fs.done ? "bg-emerald-50" : "bg-slate-50/50"
+                        )}>
+                          <div className={cn(
+                            "w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0",
+                            fs.done ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-400"
+                          )}>
+                            {fs.done ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Truck className="w-3 h-3" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <span className={cn("text-xs font-black", fs.done ? "text-emerald-700" : "text-slate-400")}>
+                              EDI {fs.code} — {fs.name}
+                            </span>
+                            <span className={cn("ml-2 text-[9px] font-bold", fs.done ? "text-slate-500" : "text-slate-300")}>
+                              {fs.dir === "IN" ? `← ${fs.from}` : `→ ${fs.to}`}
+                            </span>
+                          </div>
+                          {fs.done && fs.json && (
+                            <button
+                              onClick={() => setViewer({
+                                title: `EDI ${fs.code} — ${fs.name} (JSON)`,
+                                content: JSON.stringify(fs.json, null, 2),
+                              })}
+                              className="px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+                            >
+                              JSON
+                            </button>
+                          )}
+                          {!fs.done && (
+                            <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Pending</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Order info */}
             <div className="grid grid-cols-2 gap-3">
